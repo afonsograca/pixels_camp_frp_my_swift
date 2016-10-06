@@ -22,6 +22,7 @@ class LoginViewController: UIViewController {
   @IBOutlet weak var signInButton: BorderedButton!
   @IBOutlet weak var navigationBar: UINavigationItem!
   var processingLogIn: ProcessingVisualEffectView?
+  var loginRequest: Disposable?
 
   // MARK: - Lifecycle
   override func viewDidLoad() {
@@ -84,7 +85,7 @@ extension LoginViewController {
   }
 
   func setupRxLogin() {
-    signInButton.rx_tap
+    let request = signInButton.rx_tap
       .flatMapLatest { [weak self] _ -> Observable<Response> in
         guard let `self` = self, email = self.emailInputField.text,
           password = self.passwordInputField.text else { return Observable.never() }
@@ -104,7 +105,7 @@ extension LoginViewController {
         default:
           break
         }
-    }.addDisposableTo(rx_disposeBag)
+    }
   }
 }
 
@@ -112,15 +113,6 @@ extension LoginViewController {
 extension LoginViewController {
   @IBAction func onForgotPasswordTap(sender: UIButton) {
     // TODO: Implementation of resetting password
-  }
-
-  private func login() {
-    guard let email = emailInputField.text, password = passwordInputField.text else {
-      return
-    }
-    processingLogIn?.message = "Logging In"
-    processingLogIn?.show()
-    viewModel.login(email, pasword: password)
   }
 }
 

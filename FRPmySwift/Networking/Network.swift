@@ -21,7 +21,7 @@ class Network {
         method: target.method, parameters: target.parameters, parameterEncoding: .JSON,
         httpHeaderFields: target.headers)
     },
-    stubClosure: MoyaProvider.DelayedStub(5),
+    stubClosure: MoyaProvider.DelayedStub(3),
     plugins: [ NetworkActivityPlugin { activity in
       switch activity {
       case .Began:
