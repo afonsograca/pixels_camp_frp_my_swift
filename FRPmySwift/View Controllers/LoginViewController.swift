@@ -8,8 +8,9 @@
 
 import UIKit
 import RxSwift
+import Moya
 
-class LoginViewController: UIViewController, UITextFieldDelegate {
+class LoginViewController: UIViewController {
   let viewModel = LoginViewModel()
 
   // MARK: - Labels
@@ -20,14 +21,12 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
   @IBOutlet weak var forgotPasswordButton: UIButton!
   @IBOutlet weak var signInButton: BorderedButton!
   @IBOutlet weak var navigationBar: UINavigationItem!
-  let disposeBag = DisposeBag()
   var processingLogIn: ProcessingVisualEffectView?
 
   // MARK: - Lifecycle
   override func viewDidLoad() {
     super.viewDidLoad()
     setup()
-    bindViewController()
 
     processingLogIn = ProcessingVisualEffectView(controller: self,
       message: "Logging in")
@@ -48,13 +47,11 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
   // MARK: - Localisation Methods
   func setup() {
     setupTextFields()
+    setupRx()
     setupButtons()
   }
 
   func setupTextFields() {
-    emailInputField.delegate = self
-    passwordInputField.delegate = self
-
     emailInputField.placeholder = "Email"
     passwordInputField.placeholder = "Password"
   }
@@ -65,38 +62,54 @@ class LoginViewController: UIViewController, UITextFieldDelegate {
   }
 }
 
-// MARK: - View Controller - View Model Binding
+// MARK: - Rx setup (FRP)
 extension LoginViewController {
-  private func bindViewController() {
-    viewModel
-      .currentState
-      .asObservable()
-      .subscribeNext { [weak self] event in
-        guard let `self` = self else {
-          return
-        }
-        switch event {
-        case .LoggedIn:
+  func setupRx() {
+    setupRxSignInButton()
+    setupRxLogin()
+  }
+
+  func setupRxSignInButton() {
+    // first I will create some intermediate variable, you know for readability
+    let isEmailValid = emailInputField.rx_text
+      .debounce(0.5, scheduler: MainScheduler.instance)
+      .map(Validations.isValidEmail)
+    let isPasswordValid = passwordInputField.rx_text
+      .debounce(0.5, scheduler: MainScheduler.instance)
+      .map(Validations.isValidPassword)
+
+    Observable.combineLatest(isEmailValid, isPasswordValid) { $0 && $1 }
+      .bindTo(signInButton.rx_enabled)
+      .addDisposableTo(rx_disposeBag)
+  }
+
+  func setupRxLogin() {
+    signInButton.rx_tap
+      .flatMapLatest { [weak self] _ -> Observable<Response> in
+        guard let `self` = self, email = self.emailInputField.text,
+          password = self.passwordInputField.text else { return Observable.never() }
+        self.processingLogIn?.message = "Logging In"
+        self.processingLogIn?.show()
+        return self.viewModel.login(email, pasword: password)
+      }
+      .subscribe { [weak self] result in
+        guard let `self` = self else { return }
+        switch result {
+        case .Next:
           self.processingLogIn?.hide()
           self.presentAlert("Sign in Successful", description: "Happy Translations.")
-        case .ErrorLoggingIn(_):
+        case .Error:
           self.processingLogIn?.hide()
           self.presentAlert("Wrong email or password", description: "Please try again.")
         default:
           break
         }
-      }
-      .addDisposableTo(rx_disposeBag)
+    }.addDisposableTo(rx_disposeBag)
   }
 }
 
 // MARK: - Actions
 extension LoginViewController {
-  @IBAction func performLogin(sender: UIButton) {
-    login()
-  }
-
-
   @IBAction func onForgotPasswordTap(sender: UIButton) {
     // TODO: Implementation of resetting password
   }
@@ -118,43 +131,5 @@ extension LoginViewController {
     let dismiss = UIAlertAction(title: "Ok", style: .Default, handler: nil)
     action.addAction(dismiss)
     presentViewController(action, animated: true, completion: nil)
-  }
-}
-
-// MARK: - UITextField Methods
-extension LoginViewController {
-  func textField(textField: UITextField, shouldChangeCharactersInRange range: NSRange,
-                 replacementString string: String) -> Bool {
-    if let currentString = textField.text {
-      let currentNSString = currentString as NSString
-      let currentText = currentNSString.stringByReplacingCharactersInRange(range,
-                                                                           withString: string)
-
-      switch textField {
-      case emailInputField:
-        if let password = passwordInputField.text
-          where Validations.isValidEmail(currentText as String)
-          && Validations.isValidPassword(password) {
-          signInButton.enabled = true
-        }
-        else {
-          signInButton.enabled = false
-        }
-      case passwordInputField:
-        if let email = emailInputField.text where Validations.isValidEmail(email)
-          && Validations.isValidPassword(currentText as String) {
-          signInButton.enabled = true
-        }
-        else {
-          signInButton.enabled = false
-        }
-      default:
-        signInButton.enabled = false
-      }
-    }
-    else {
-      signInButton.enabled = false
-    }
-    return true
   }
 }

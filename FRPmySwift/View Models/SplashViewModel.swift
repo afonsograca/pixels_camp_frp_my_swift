@@ -26,27 +26,5 @@ class SplashViewModel: NSObject {
 // MARK: - Private Requests
 extension SplashViewModel {
   private func userInfoRequest() {
-//    Network.unbabelProvider
-//    .request(UnbabelAPI.GetUser)
-//    .retry(maxAttemptCount)
-//    .mapObject(User)
-//    .subscribe { [weak self] result in
-//        guard let `self` = self else { return }
-//      switch result {
-//      case .Error:
-//        self.currentState.value = .ErrorLoggingIn(error: "Error Fetching User")
-//      case .Next(let user):
-//        if user.identifier != nil && user.authToken != nil {
-//          user.saveEventually()
-//          self.destinationViewModel = TaskLandingViewModel(user: user)
-//          self.currentState.value = .LoggedIn(user: user, firstTime: false)
-//        } else {
-//          self.currentState.value = .ErrorLoggingIn(error: "Error Fetching User")
-//        }
-//      default:
-//        break
-//      }
-//    }
-//    .addDisposableTo(rx_disposeBag)
   }
 }
